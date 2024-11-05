@@ -26,12 +26,12 @@ class InterceptorFactory implements InterceptorFactoryInterface
     /**
      * @param string|null $method
      * @param string $pathPattern
-     * @param callable(RequestInterface):RequestInterface|null $incomingHandler
-     * @param callable(ResponseInterface):ResponseInterface|null $outgoingHandler
+     * @param callable(RequestInterface):RequestInterface|null $requestTransformer
+     * @param callable(ResponseInterface):ResponseInterface|null $responseTransformer
      * @return InterceptorInterface
      * @throws InterceptorCreationException
      */
-    public function createInterceptor(?string $method, string $pathPattern, ?callable $incomingHandler = null, ?callable $outgoingHandler = null): InterceptorInterface
+    public function createInterceptor(?string $method, string $pathPattern, ?callable $requestTransformer = null, ?callable $responseTransformer = null): InterceptorInterface
     {
         $rules = [];
 
@@ -41,7 +41,7 @@ class InterceptorFactory implements InterceptorFactoryInterface
             }
 
             $rules[] = $this->pathRuleParser->parse($pathPattern);
-            return new Interceptor($rules, $incomingHandler, $outgoingHandler);
+            return new Interceptor($rules, $requestTransformer, $responseTransformer);
         }
 
         catch (Throwable $exception) {

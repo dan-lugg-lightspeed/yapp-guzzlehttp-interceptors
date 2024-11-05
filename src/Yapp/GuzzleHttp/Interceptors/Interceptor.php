@@ -11,10 +11,6 @@ use Yapp\GuzzleHttp\Interceptors\Rules\RuleInterface;
 
 class Interceptor implements InterceptorInterface
 {
-    public const string INCOMING_HANDLER = "incoming";
-
-    public const string OUTGOING_HANDLER = "outgoing";
-
     /**
      * @var array|RuleInterface[]
      */
@@ -23,28 +19,28 @@ class Interceptor implements InterceptorInterface
     /**
      * @var Closure|null
      */
-    private ?Closure $incomingHandler;
+    private ?Closure $requestTransformer;
 
     /**
      * @var Closure|null
      */
-    private ?Closure $outgoingHandler;
+    private ?Closure $responseTransformer;
 
     /**
      * @param array|RuleInterface[] $rules
-     * @param callable(RequestInterface):RequestInterface|null $incomingHandler
-     * @param callable(ResponseInterface):ResponseInterface|null $outgoingHandler
+     * @param callable(RequestInterface):RequestInterface|null $requestTransformer
+     * @param callable(ResponseInterface):ResponseInterface|null $responseTransformer
      */
-    public function __construct(array $rules, ?callable $incomingHandler = null, ?callable $outgoingHandler = null)
+    public function __construct(array $rules, ?callable $requestTransformer = null, ?callable $responseTransformer = null)
     {
         $this->rules = $rules;
 
-        $this->incomingHandler = $incomingHandler
-            ? $incomingHandler(...)
+        $this->requestTransformer = $requestTransformer
+            ? $requestTransformer(...)
             : null;
 
-        $this->outgoingHandler = $outgoingHandler
-            ? $outgoingHandler(...)
+        $this->responseTransformer = $responseTransformer
+            ? $responseTransformer(...)
             : null;
     }
 
@@ -58,10 +54,11 @@ class Interceptor implements InterceptorInterface
 
     /**
      * @param RequestInterface $request
-     * @param callable(callable):callable|null $middlewareCallable
+     * @param callable|null $requestTransformer
+     * @param callable|null $responseTransformer
      * @return bool
      */
-    public function tryCreateMiddlewareCallable(RequestInterface $request, ?callable &$middlewareCallable = null): bool
+    public function tryCreateTransformers(RequestInterface $request, ?callable &$requestTransformer = null, ?callable &$responseTransformer = null): bool
     {
         $context = InterceptorContext::create();
 
@@ -74,7 +71,16 @@ class Interceptor implements InterceptorInterface
                 return false;
             }
 
-            $middlewareCallable = $this->createMiddlewareCallable($context);
+            $requestTransformer = function (RequestInterface $request, array $options) use ($context) {
+                $transformer = $this->requestTransformer ?? fn(RequestInterface $request) => $request;
+                return $transformer($request, $context, $options);
+            };
+
+            $responseTransformer = function (ResponseInterface $response) use ($context) {
+                $transformer = $this->responseTransformer ?? fn(ResponseInterface $response) => $response;
+                return $transformer($response, $context);
+            };
+
             return true;
         }
 
@@ -82,30 +88,4 @@ class Interceptor implements InterceptorInterface
             throw new RuntimeException($exception->getMessage(), $exception->getCode(), $exception);
         }
     }
-
-    /**
-     * @param InterceptorContext $context
-     * @return callable(callable):callable
-     */
-    public function createMiddlewareCallable(InterceptorContext $context): callable
-    {
-        $incomingHandler = $this->incomingHandler ?? fn(RequestInterface $request) => $request;
-        $outgoingHandler = $this->outgoingHandler ?? fn(ResponseInterface $response) => $response;
-
-        return function (callable $function) use ($incomingHandler, $outgoingHandler, $context): callable {
-            return function (RequestInterface $request, array $options) use ($function, $incomingHandler, $outgoingHandler, $context) {
-                $options = array_merge($options, [
-                    "context" => $context,
-                ]);
-
-                $request = $incomingHandler($request, $options);
-                $promise = $function($request, $options);
-
-                return $promise->then(function (ResponseInterface $response) use ($options, $outgoingHandler) {
-                    return $outgoingHandler($response, $options);
-                });
-            };
-        };
-    }
-
 }

@@ -14,8 +14,9 @@ interface InterceptorInterface
 
     /**
      * @param RequestInterface $request
-     * @param callable|null $middlewareCallable
+     * @param callable|null $requestTransformer
+     * @param callable|null $responseTransformer
      * @return bool
      */
-    public function tryCreateMiddlewareCallable(RequestInterface $request, ?callable &$middlewareCallable = null): bool;
+    public function tryCreateTransformers(RequestInterface $request, ?callable &$requestTransformer = null, ?callable &$responseTransformer = null): bool;
 }

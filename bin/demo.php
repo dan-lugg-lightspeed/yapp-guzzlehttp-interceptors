@@ -1,80 +1,82 @@
 <?php
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Handler\CurlHandler;
 use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Psr7\Request;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Yapp\GuzzleHttp\Interceptors\MiddlewareFactoryBuilder;
+use Yapp\GuzzleHttp\Interceptors\InterceptorContextInterface;
+use Yapp\GuzzleHttp\Interceptors\InterceptorMiddleware;
+use Yapp\GuzzleHttp\Interceptors\InterceptorMiddlewareBuilder;
+use Yapp\GuzzleHttp\Interceptors\InterceptorMiddlewareBuildingException;
 
 require_once sprintf("%s/../vendor/autoload.php", __DIR__);
 
-///
-/// 
-/// 
-/// 
-/// 
 
+class Interceptors
+{
+    /**
+     * @throws InterceptorMiddlewareBuildingException
+     */
+    public static function createMiddleware(): InterceptorMiddleware
+    {
+        return InterceptorMiddlewareBuilder::buildWith(function (InterceptorMiddlewareBuilder $middlewareBuilder) {
+            $middlewareBuilder->any("/*")
+                ->withRequestTransformer([self::class, "exampleRequestTransformer1"])
+                ->withResponseTransformer([self::class, "exampleResponseTransformer1"]);
+
+            $middlewareBuilder->any("/admin/{module}/*")
+                ->withRequestTransformer([self::class, "exampleRequestTransformer2"])
+                ->withResponseTransformer([self::class, "exampleResponseTransformer2"]);
+        });
+    }
+
+    public static function exampleRequestTransformer1(RequestInterface $request, InterceptorContextInterface $context): RequestInterface
+    {
+        var_dump([__METHOD__ => $context]);
+        return $request;
+    }
+
+    public static function exampleResponseTransformer1(ResponseInterface $response, InterceptorContextInterface $context): ResponseInterface
+    {
+        var_dump([__METHOD__ => $context]);
+        return $response;
+    }
+
+    public static function exampleRequestTransformer2(RequestInterface $request, InterceptorContextInterface $context): RequestInterface
+    {
+        var_dump([__METHOD__ => $context]);
+        return $request;
+    }
+
+    public static function exampleResponseTransformer2(ResponseInterface $response, InterceptorContextInterface $context): ResponseInterface
+    {
+        var_dump([__METHOD__ => $context]);
+        return $response;
+    }
+}
+
+/**
+ * @throws GuzzleException
+ * @throws InterceptorMiddlewareBuildingException
+ */
 function main(): void
 {
-    $middlewareFactoryBuilder = MiddlewareFactoryBuilder::buildWith(function (MiddlewareFactoryBuilder $builder) {
-        $builder->get("/*", [
-            "incoming" => function (RequestInterface $request, array $options): RequestInterface {
-                echo "Incoming-A\n";
-                return $request->withHeader("Incoming-A", true);
-            },
-            "outgoing" => function (ResponseInterface $response, array $options): ResponseInterface {
-                echo "Outgoing-A\n";
-                return $response->withHeader("Outgoing-A", true);
-            }
-        ]);
-
-        $builder->get("/foo/*", [
-            "incoming" => function (RequestInterface $request, array $options): RequestInterface {
-                echo "Incoming-B\n";
-                return $request->withHeader("Incoming-B", true);
-            },
-            "outgoing" => function (ResponseInterface $response, array $options): ResponseInterface {
-                echo "Outgoing-B\n";
-                return $response->withHeader("Outgoing-B", true);
-            }
-        ]);
-
-        $builder->get("/foo/bar/*", [
-            "incoming" => function (RequestInterface $request, array $options): RequestInterface {
-                echo "Incoming-C\n";
-                return $request->withHeader("Incoming-C", true);
-            },
-            "outgoing" => function (ResponseInterface $response, array $options): ResponseInterface {
-                echo "Outgoing-C\n";
-                return $response->withHeader("Outgoing-C", true);
-            }
-        ]);
-    });
-
-    $request = new Request("GET", "/foo/bar");
+    $v2Middleware = Interceptors::createMiddleware();
 
     $handlerStack = HandlerStack::create();
     $handlerStack->setHandler(new CurlHandler());
+    $handlerStack->push($v2Middleware);
+    $client = new Client([
+        "handler" => $handlerStack,
+        "verify" => false,
+        // "debug" => true,
+    ]);
 
-    foreach ($middlewareFactoryBuilder->getMiddlewareCallables($request) as $middlewareCallable) {
-        $handlerStack->push($middlewareCallable);
-    };
+    $response = $client->get("https://localhost:3000/admin/invoicing/movies/5");
 
-    $client = new Client(["handler" => $handlerStack, "debug" => true]);
-    $response = $client->get("https://example.com/");
-
-    var_dump($response->getStatusCode());
-
-    foreach ($response->getHeaders() as $name => $values) {
-        echo vsprintf("%-15s\t%s\n", [
-            $name,
-            implode(", ", $values),
-        ]);
-    }
-
-    var_dump($response->getBody());
+    var_dump($response->getBody()->getContents());
 }
 
 main();

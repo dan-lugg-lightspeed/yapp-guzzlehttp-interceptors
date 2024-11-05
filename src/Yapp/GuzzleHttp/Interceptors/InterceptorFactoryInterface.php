@@ -7,9 +7,9 @@ interface InterceptorFactoryInterface
     /**
      * @param string|null $method
      * @param string $pathPattern
-     * @param callable|null $incomingHandler
-     * @param callable|null $outgoingHandler
+     * @param callable|null $requestTransformer
+     * @param callable|null $responseTransformer
      * @return InterceptorInterface
      */
-    public function createInterceptor(?string $method, string $pathPattern, ?callable $incomingHandler = null, ?callable $outgoingHandler = null): InterceptorInterface;
+    public function createInterceptor(?string $method, string $pathPattern, ?callable $requestTransformer = null, ?callable $responseTransformer = null): InterceptorInterface;
 }

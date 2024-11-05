@@ -2,12 +2,8 @@
 
 namespace Yapp\GuzzleHttp\Interceptors;
 
-use Exception;
+use RuntimeException;
 
-class NotImplementedException extends Exception
+class NotImplementedException extends RuntimeException
 {
-    public function __construct()
-    {
-        parent::__construct("Not yet implemented");
-    }
 }

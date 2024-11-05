@@ -4,6 +4,6 @@ namespace Yapp\GuzzleHttp\Interceptors;
 
 use Exception;
 
-class MiddlewareFactoryBuildingException extends Exception
+class InterceptorMiddlewareBuildingException extends Exception
 {
 }
